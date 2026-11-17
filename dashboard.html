@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>نظام إدارة مواقف السيارات الذكي — Smart Parking Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --bg: #0b0f19;
+      --card-bg: rgba(22, 30, 49, 0.75);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --accent-blue: #3b82f6;
+      --accent-green: #10b981;
+      --accent-red: #ef4444;
+      --accent-amber: #f59e0b;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Cairo', sans-serif;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text-main);
+      padding: 24px;
+      min-height: 100vh;
+      background-image: 
+        radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.12) 0px, transparent 50%),
+        radial-gradient(at 100% 100%, rgba(16, 185, 129, 0.08) 0px, transparent 50%);
+    }
+
+    .container {
+      max-width: 1300px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 20px 28px;
+      backdrop-filter: blur(12px);
+    }
+    .header-title h1 {
+      font-size: 24px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: #fff;
+    }
+    .header-title p {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+    .live-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: var(--accent-green);
+      padding: 6px 14px;
+      border-radius: 9999px;
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .pulse-dot {
+      width: 10px;
+      height: 10px;
+      background: var(--accent-green);
+      border-radius: 50%;
+      box-shadow: 0 0 10px var(--accent-green);
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.85); }
+    }
+
+    /* KPI Row */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 16px;
+    }
+    .kpi-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      padding: 18px 20px;
+      backdrop-filter: blur(8px);
+      position: relative;
+      overflow: hidden;
+    }
+    .kpi-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      right: 0;
+      left: 0;
+      height: 3px;
+      background: var(--accent-blue);
+    }
+    .kpi-card.green::before { background: var(--accent-green); }
+    .kpi-card.red::before { background: var(--accent-red); }
+    .kpi-card.amber::before { background: var(--accent-amber); }
+
+    .kpi-label {
+      font-size: 13px;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+    .kpi-value {
+      font-size: 32px;
+      font-weight: 900;
+      margin-top: 6px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .kpi-sub {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    /* Parking Spots Section */
+    .spots-section {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 24px;
+      backdrop-filter: blur(10px);
+    }
+    .section-title {
+      font-size: 16px;
+      font-weight: 800;
+      margin-bottom: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .spots-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 16px;
+    }
+    .spot-card {
+      background: rgba(15, 23, 42, 0.6);
+      border: 2px solid #334155;
+      border-radius: 14px;
+      padding: 20px;
+      text-align: center;
+      transition: all 0.3s ease;
+      position: relative;
+    }
+    .spot-card.occupied {
+      border-color: rgba(239, 68, 68, 0.6);
+      background: rgba(239, 68, 68, 0.08);
+    }
+    .spot-card.available {
+      border-color: rgba(16, 185, 129, 0.6);
+      background: rgba(16, 185, 129, 0.08);
+    }
+    .spot-icon {
+      font-size: 36px;
+      margin-bottom: 8px;
+    }
+    .spot-name {
+      font-size: 16px;
+      font-weight: 800;
+      margin-bottom: 4px;
+    }
+    .spot-badge {
+      display: inline-block;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 4px 12px;
+      border-radius: 9999px;
+      margin-top: 6px;
+    }
+    .spot-badge.occupied {
+      background: rgba(239, 68, 68, 0.2);
+      color: #fca5a5;
+    }
+    .spot-badge.available {
+      background: rgba(16, 185, 129, 0.2);
+      color: #6ee7b7;
+    }
+
+    /* Charts & Analytics Row */
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 20px;
+    }
+    .chart-card, .analytics-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 22px;
+      backdrop-filter: blur(10px);
+    }
+    .chart-container {
+      position: relative;
+      height: 280px;
+      margin-top: 12px;
+    }
+
+    /* Analytics Mini Grid */
+    .analytics-list {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      margin-top: 10px;
+    }
+    .analytics-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(15, 23, 42, 0.5);
+      padding: 12px 16px;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.04);
+    }
+    .analytics-item .label {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+    .analytics-item .val {
+      font-size: 15px;
+      font-weight: 800;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Footer / Device Health */
+    .health-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      padding: 14px 24px;
+      font-size: 12.5px;
+      color: var(--text-muted);
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .health-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .status-circle {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent-green);
+    }
+
+    @media (max-width: 1100px) {
+      .kpi-grid, .spots-grid { grid-template-columns: repeat(3, 1fr); }
+      .dashboard-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 700px) {
+      .kpi-grid, .spots-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 480px) {
+      .kpi-grid, .spots-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- Header -->
+  <header class="header">
+    <div class="header-title">
+      <h1>🚗 نظام مواقف السيارات الذكي • Smart Parking</h1>
+      <p>مراقبة لحظية مدعومة بـ YOLOv8 Edge AI + ESP32 Hardware + ThingSpeak Cloud (TLS)</p>
+    </div>
+    <div class="live-badge">
+      <span class="pulse-dot"></span>
+      <span id="freshness-text">بث مباشر متصل</span>
+    </div>
+  </header>
+
+  <!-- KPI Row -->
+  <div class="kpi-grid">
+    <div class="kpi-card">
+      <div class="kpi-label">إجمالي المواقف (Total)</div>
+      <div class="kpi-value" id="kpi-total">4</div>
+      <div class="kpi-sub">المواقع المرصودة بالكاميرا</div>
+    </div>
+    <div class="kpi-card green">
+      <div class="kpi-label">المواقف الشاغرة (Available)</div>
+      <div class="kpi-value" style="color: var(--accent-green);" id="kpi-available">--</div>
+      <div class="kpi-sub">جاهزة لاستقبال المركبات</div>
+    </div>
+    <div class="kpi-card red">
+      <div class="kpi-label">المواقف المشغولة (Occupied)</div>
+      <div class="kpi-value" style="color: var(--accent-red);" id="kpi-occupied">--</div>
+      <div class="kpi-sub">مركبات متوقفة حالياً</div>
+    </div>
+    <div class="kpi-card amber">
+      <div class="kpi-label">نسبة الإشغال (Occupancy Rate)</div>
+      <div class="kpi-value" style="color: var(--accent-amber);" id="kpi-occupancy">--%</div>
+      <div class="kpi-sub">المؤشر اللحظي العام</div>
+    </div>
+    <div class="kpi-card green" id="kpi-gate-card">
+      <div class="kpi-label">حالة البوابة (Gate Status)</div>
+      <div class="kpi-value" style="color: var(--accent-green);" id="kpi-gate">--</div>
+      <div class="kpi-sub" id="kpi-gate-sub">تلقائي عبر الـ Servo</div>
+    </div>
+  </div>
+
+  <!-- Real-time Parking Spots Visualizer -->
+  <section class="spots-section">
+    <div class="section-title">
+      <span>مخطط المواقف الفيزيائي وحالة البوابة (Real-Time Spot & Gate Status)</span>
+      <span style="font-size: 12px; color: var(--text-muted); font-weight: normal;">يحدث آلياً مع كل إشارة من الكاميرا والـ ESP32</span>
+    </div>
+    <div class="spots-grid">
+      <div class="spot-card" id="spot-1">
+        <div class="spot-icon" id="spot-1-icon">⏳</div>
+        <div class="spot-name">الموقف 1 (Spot 1)</div>
+        <span class="spot-badge" id="spot-1-badge">جاري القراءة...</span>
+      </div>
+      <div class="spot-card" id="spot-2">
+        <div class="spot-icon" id="spot-2-icon">⏳</div>
+        <div class="spot-name">الموقف 2 (Spot 2)</div>
+        <span class="spot-badge" id="spot-2-badge">جاري القراءة...</span>
+      </div>
+      <div class="spot-card" id="spot-3">
+        <div class="spot-icon" id="spot-3-icon">⏳</div>
+        <div class="spot-name">الموقف 3 (Spot 3)</div>
+        <span class="spot-badge" id="spot-3-badge">جاري القراءة...</span>
+      </div>
+      <div class="spot-card" id="spot-4">
+        <div class="spot-icon" id="spot-4-icon">⏳</div>
+        <div class="spot-name">الموقف 4 (Spot 4)</div>
+        <span class="spot-badge" id="spot-4-badge">جاري القراءة...</span>
+      </div>
+      <div class="spot-card" id="spot-gate">
+        <div class="spot-icon" id="spot-gate-icon">⏳</div>
+        <div class="spot-name">بوابة الدخول (Gate)</div>
+        <span class="spot-badge" id="spot-gate-badge">جاري القراءة...</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Charts & Analytics Row -->
+  <div class="dashboard-grid">
+    <!-- Chart -->
+    <div class="chart-card">
+      <div class="section-title">
+        <span>📈 اتجاه نسبة الإشغال الزمني (Occupancy Trend)</span>
+        <span style="font-size: 12px; color: var(--text-muted); font-weight: normal;">آخر القراءات المسجلة بالسحابة</span>
+      </div>
+      <div class="chart-container">
+        <canvas id="occupancyChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Analytics & KPIs -->
+    <div class="analytics-card">
+      <div class="section-title">
+        <span>📊 التحليل الرياضي (Analytics)</span>
+      </div>
+      <div class="analytics-list">
+        <div class="analytics-item">
+          <span class="label">متوسط الإشغال (Average)</span>
+          <span class="val" id="stat-avg">--%</span>
+        </div>
+        <div class="analytics-item">
+          <span class="label">ذروة الإشغال (Peak)</span>
+          <span class="val" style="color: var(--accent-red);" id="stat-max">--%</span>
+        </div>
+        <div class="analytics-item">
+          <span class="label">أدنى إشغال (Minimum)</span>
+          <span class="val" style="color: var(--accent-green);" id="stat-min">--%</span>
+        </div>
+        <div class="analytics-item">
+          <span class="label">اتجاه الحركة (Trend Slope)</span>
+          <span class="val" style="color: var(--accent-blue);" id="stat-trend">مستقر</span>
+        </div>
+        <div class="analytics-item">
+          <span class="label">كشف الشذوذ (2-Sigma Anomalies)</span>
+          <span class="val" id="stat-anomalies">0 حالات</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Device Health Bar -->
+  <footer class="health-bar">
+    <div class="health-item">
+      <span class="status-circle"></span>
+      <span>متحكم ESP32: <b style="color: #fff;">متصل (Online)</b></span>
+    </div>
+    <div class="health-item">
+      <span class="status-circle"></span>
+      <span>التشفير: <b style="color: #fff;">TLS 1.2/1.3 (HTTPS)</b></span>
+    </div>
+    <div class="health-item">
+      <span class="status-circle"></span>
+      <span>منصة السحابة: <b style="color: #fff;" id="cloud-channel-label">ThingSpeak</b></span>
+    </div>
+    <div class="health-item">
+      <span>آخر تحديث: <b style="color: #fff;" id="last-update-time">جاري التحميل...</b></span>
+    </div>
+  </footer>
+
+</div>
+
+<script>
+  const params     = new URLSearchParams(window.location.search);
+  const CHANNEL_ID = (params.get('channel') || localStorage.getItem('ts_channel_id') || '').trim();
+  const READ_KEY   = (params.get('key')     || localStorage.getItem('ts_read_key')   || '').trim();
+  if (params.get('channel')) localStorage.setItem('ts_channel_id', CHANNEL_ID);
+  if (params.get('key'))     localStorage.setItem('ts_read_key', READ_KEY);
+
+  const channelLabel = document.getElementById('cloud-channel-label');
+  if (channelLabel && CHANNEL_ID) {
+    channelLabel.innerText = `ThingSpeak (ID: ${CHANNEL_ID})`;
+  }
+
+  const API_URL = CHANNEL_ID
+    ? `https://api.thingspeak.com/channels/${encodeURIComponent(CHANNEL_ID)}/feeds.json?${READ_KEY ? `api_key=${encodeURIComponent(READ_KEY)}&` : ''}results=30`
+    : '';
+
+  let chart = null;
+
+  function initChart() {
+    const ctx = document.getElementById('occupancyChart').getContext('2d');
+    chart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [{
+          label: 'نسبة الإشغال %',
+          data: [],
+          borderColor: '#3b82f6',
+          backgroundColor: 'rgba(59, 130, 246, 0.15)',
+          fill: true,
+          tension: 0.35,
+          borderWidth: 2.5,
+          pointRadius: 4,
+          pointBackgroundColor: '#60a5fa'
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y: {
+            min: 0,
+            max: 100,
+            grid: { color: 'rgba(255, 255, 255, 0.05)' },
+            ticks: { color: '#94a3b8', callback: v => v + '%' }
+          },
+          x: {
+            grid: { display: false },
+            ticks: { color: '#94a3b8', maxRotation: 0 }
+          }
+        },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: ctx => `الإشغال: ${ctx.parsed.y}%`
+            }
+          }
+        }
+      }
+    });
+  }
+
+  async function fetchThingSpeakData() {
+    if (!API_URL) {
+      document.getElementById('freshness-text').innerText = 'أضف ?channel=ID&key=READ_KEY في الرابط';
+      return;
+    }
+    try {
+      const res = await fetch(API_URL);
+      const json = await res.json();
+      const feeds = json.feeds || [];
+
+      if (feeds.length === 0) return;
+
+      const latest = feeds[feeds.length - 1];
+
+      // Fields:
+      // field1: Spot 1
+      // field2: Spot 2
+      // field3: Spot 3
+      // field4: Spot 4
+      // field5: Occupied Count
+      // field6: Occupancy %
+
+      const s1 = parseInt(latest.field1) || 0;
+      const s2 = parseInt(latest.field2) || 0;
+      const s3 = parseInt(latest.field3) || 0;
+      const s4 = parseInt(latest.field4) || 0;
+      const occupied = parseInt(latest.field5) || (s1 + s2 + s3 + s4);
+      const occPct   = parseFloat(latest.field6) || ((occupied / 4) * 100);
+      const available = 4 - occupied;
+
+      // Update KPIs
+      document.getElementById('kpi-occupied').innerText = occupied;
+      document.getElementById('kpi-available').innerText = available;
+      document.getElementById('kpi-occupancy').innerText = occPct.toFixed(0) + '%';
+
+      // Update Gate Status (Gate is Open if there's at least 1 available spot)
+      const isGateOpen = available > 0;
+      updateGateUI(isGateOpen);
+
+      // Update Spots
+      updateSpotUI(1, s1);
+      updateSpotUI(2, s2);
+      updateSpotUI(3, s3);
+      updateSpotUI(4, s4);
+
+      // Update Time
+      const d = new Date(latest.created_at);
+      document.getElementById('last-update-time').innerText = d.toLocaleTimeString('ar-SA');
+      document.getElementById('freshness-text').innerText = 'متصل • تحديث مباشر';
+
+      // Update Chart Data & Stats
+      const labels = [];
+      const dataPoints = [];
+      feeds.forEach(f => {
+        const timeStr = new Date(f.created_at).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' });
+        labels.push(timeStr);
+        dataPoints.push(parseFloat(f.field6) || 0);
+      });
+
+      if (chart) {
+        chart.data.labels = labels;
+        chart.data.datasets[0].data = dataPoints;
+        chart.update();
+      }
+
+      // Calculate Math Analytics
+      calculateAnalytics(dataPoints);
+
+    } catch (err) {
+      console.warn('ThingSpeak polling error:', err);
+      document.getElementById('freshness-text').innerText = 'جاري إعادة المحاولة...';
+    }
+  }
+
+  function updateGateUI(isOpen) {
+    const kpiVal  = document.getElementById('kpi-gate');
+    const kpiSub  = document.getElementById('kpi-gate-sub');
+    const kpiCard = document.getElementById('kpi-gate-card');
+
+    const gateCard  = document.getElementById('spot-gate');
+    const gateIcon  = document.getElementById('spot-gate-icon');
+    const gateBadge = document.getElementById('spot-gate-badge');
+
+    if (isOpen) {
+      if (kpiVal) { kpiVal.innerText = 'مفتوحة'; kpiVal.style.color = 'var(--accent-green)'; }
+      if (kpiSub) kpiSub.innerText = 'يوجد مواقف شاغرة (Servo Open)';
+      if (kpiCard) kpiCard.className = 'kpi-card green';
+
+      if (gateCard) gateCard.className = 'spot-card available';
+      if (gateIcon) gateIcon.innerText = '🔓';
+      if (gateBadge) {
+        gateBadge.className = 'spot-badge available';
+        gateBadge.innerText = '🟢 مفتوحة (Gate Open)';
+      }
+    } else {
+      if (kpiVal) { kpiVal.innerText = 'مغلقة'; kpiVal.style.color = 'var(--accent-red)'; }
+      if (kpiSub) kpiSub.innerText = 'المواقف ممتلئة (Servo Close)';
+      if (kpiCard) kpiCard.className = 'kpi-card red';
+
+      if (gateCard) gateCard.className = 'spot-card occupied';
+      if (gateIcon) gateIcon.innerText = '🔒';
+      if (gateBadge) {
+        gateBadge.className = 'spot-badge occupied';
+        gateBadge.innerText = '🔴 مغلقة (Gate Closed)';
+      }
+    }
+  }
+
+  function updateSpotUI(spotNum, isOccupied) {
+    const card  = document.getElementById(`spot-${spotNum}`);
+    const icon  = document.getElementById(`spot-${spotNum}-icon`);
+    const badge = document.getElementById(`spot-${spotNum}-badge`);
+
+    if (isOccupied === 1) {
+      card.className = 'spot-card occupied';
+      icon.innerText = '🚗';
+      badge.className = 'spot-badge occupied';
+      badge.innerText = '🔴 مشغول (Occupied)';
+    } else {
+      card.className = 'spot-card available';
+      icon.innerText = '🅿️';
+      badge.className = 'spot-badge available';
+      badge.innerText = '🟢 متاح (Available)';
+    }
+  }
+
+  function calculateAnalytics(values) {
+    if (!values || values.length === 0) return;
+    const n = values.length;
+    const sum = values.reduce((a, b) => a + b, 0);
+    const avg = sum / n;
+    const max = Math.max(...values);
+    const min = Math.min(...values);
+
+    // Standard deviation
+    const variance = values.reduce((acc, v) => acc + Math.pow(v - avg, 2), 0) / n;
+    const std = Math.sqrt(variance);
+
+    // 2-Sigma Anomaly threshold
+    const upperLimit = avg + 2 * std;
+    const anomalies = values.filter(v => v > upperLimit).length;
+
+    // Linear slope (trend)
+    let slope = 0;
+    if (n >= 2) {
+      let sumX = 0, sumY = sum, sumXY = 0, sumXX = 0;
+      for (let i = 0; i < n; i++) {
+        sumX += i;
+        sumXY += i * values[i];
+        sumXX += i * i;
+      }
+      slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+    }
+
+    document.getElementById('stat-avg').innerText = avg.toFixed(1) + '%';
+    document.getElementById('stat-max').innerText = max.toFixed(0) + '%';
+    document.getElementById('stat-min').innerText = min.toFixed(0) + '%';
+    document.getElementById('stat-anomalies').innerText = `${anomalies} حالات`;
+
+    const trendEl = document.getElementById('stat-trend');
+    if (slope > 0.3) {
+      trendEl.innerText = '📈 تصاعدي (ازدياد)';
+      trendEl.style.color = '#ef4444';
+    } else if (slope < -0.3) {
+      trendEl.innerText = '📉 تنازلي (مغادرة)';
+      trendEl.style.color = '#10b981';
+    } else {
+      trendEl.innerText = '⚖️ حالة استقرار';
+      trendEl.style.color = '#3b82f6';
+    }
+  }
+
+  // Init
+  initChart();
+  fetchThingSpeakData();
+  // Poll every 15 seconds
+  setInterval(fetchThingSpeakData, 15000);
+</script>
+
+</body>
+</html>

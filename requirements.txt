@@ -1,0 +1,5 @@
+opencv-python
+ultralytics
+pyserial
+requests
+python-dotenv
